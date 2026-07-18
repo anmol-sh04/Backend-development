@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 import {DB_NAME} from "./constants.js"
 import DBconnect from "./db/index.js";
 import { app } from "./app.js";
-dotenv.config({path: './env'})
+dotenv.config({path: './.env'})
 
 DBconnect()  // returns a promise
 .then(()=>{
