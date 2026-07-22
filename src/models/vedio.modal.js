@@ -29,7 +29,7 @@ const vedioSchema = new Schema({
         type: Boolean,
         default: true,
     },
-    owber: {
+    owner: {
         type: Schema.Types.ObjectId,
         ref: "User"
     }
