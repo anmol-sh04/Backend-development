@@ -3,6 +3,7 @@ import {ApiError} from "../utils/ApiError.js"
 import {User} from "../models/user.modal.js"
 import {uploadOncloudinary} from "../utils/Cloudinary.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
+import mongoose from "mongoose";
 import jwt from "jsonwebtoken"
 
 
@@ -44,7 +45,7 @@ const registerUser = asyncHandler( async (req,res)=>{
         throw new ApiError(409, "User already exists")
     }
     console.log(req.files)
-    const avatarLocalPath = req.files?.avatar[0]?.path
+    const avatarLocalPath = req.files?.avatar?.[0]?.path;
     // const coverImageLacalPath = req.files?.coverImage[0]?.path
     let coverImageLocalPath;
     if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length >0){
@@ -67,7 +68,7 @@ const registerUser = asyncHandler( async (req,res)=>{
         email,
     })
 
-    const createdUser = await User.findById(user._id).select("-password -refershToken")
+    const createdUser = await User.findById(user._id).select("-password -refrshToken")
     if(!createdUser){
         throw new ApiError(500, "Sometihng went wrong while registering the user")
     }
@@ -99,7 +100,7 @@ const loginUser = asyncHandler( async (req,res)=>{
         throw new ApiError(401, "password is incorrect")
     }
     const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
-    const loggedInUser = await User.findOne(user._id).select("-password -refreshToken")
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
 
     // options are used so that the cookies can only be changed on the server side not on the frontend side.
     const options = {
@@ -125,8 +126,8 @@ const logoutUser = asyncHandler( async (req,res)=>{
     await User.findByIdAndUpdate(
         req.user._id,
         {
-            $set:{
-                refreshToken: undefined
+            $unset:{
+                refreshToken: 1,
             }
         },
         {
@@ -168,13 +169,13 @@ const refreshAccessToken = asyncHandler(async (req,res)=>{
         httpOnly: true,
         secure: true
     }
-    const {accessToken, newrefreshToken} = await generateAccessAndRefreshToken(user._id)
+    const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
     return res
     .status(200)
     .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", newrefreshToken, options)
+    .cookie("refreshToken", refreshToken, options)
     .json(
-        new ApiResponse(200, {accessToken, refreshToken: newrefreshToken}, "access token refreshed")
+        new ApiResponse(200, {accessToken, refreshToken}, "access token refreshed")
     )
     } catch (error) {
         throw new ApiError(401, error?.message|| "Invalid refresh Token")
@@ -299,10 +300,10 @@ const getUserChannelProfile = asyncHandler(async (req,res)=>{
         {
             $addFields: {
                 subscribersCount: {
-                    $size: {$subscribers}
+                    $size: "$subscribers"
                 },
                 channelSubscribedTo : {
-                    $size: {$subscribedTo}
+                    $size: "$subscribedTo"
                 },
                 isSubscribed: {
                     $cond: {
@@ -335,7 +336,7 @@ const getUserChannelProfile = asyncHandler(async (req,res)=>{
 })
 
 const getWatchHistory = asyncHandler(async(req,res)=>{
-    const user = User.aggregate([
+    const user = await User.aggregate([
         {
             $match: {
                 _id: new mongoose.Types.ObjectId(req.user._id) 
